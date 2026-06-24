@@ -177,14 +177,14 @@
             transform: translateY(0);
         }
 
-        /* ===== 律动条容器（从一开始就占位，避免布局突变） ===== */
+        /* ===== 律动条容器 ===== */
         #visualizerWrapper {
             width: 100%;
             display: flex;
             justify-content: center;
             align-items: center;
             margin-top: 8px;
-            min-height: 70px;          /* 预占高度，防止突然拉伸 */
+            min-height: 70px;
             opacity: 0;
             transition: opacity 0.8s ease;
         }
@@ -192,10 +192,9 @@
             opacity: 1;
         }
 
-        /* 律动线条 Canvas - 宽度缩小，不占满信纸 */
         #visualizer {
-            width: 70%;                /* 从100%改为70%，不占满 */
-            max-width: 400px;          /* 最大宽度限制 */
+            width: 70%;
+            max-width: 400px;
             height: 60px;
             border-radius: 30px;
             background: rgba(255, 215, 200, 0.2);
@@ -321,18 +320,18 @@
         <!-- ===== 表白文字 + 律动条（律动条从一开始就占位） ===== -->
         <div id="content">
             <div class="line">第一次见到你，</div>
-            <div class="line">世界突然变得明亮。</div>
-            <div class="line">仿佛你在我的墙上开了一扇窗，</div>
+            <div class="line">就觉得世界突然变得明亮。</div>
+            <div class="line">仿佛你在我的世界开了一扇窗，</div>
             <div class="line">从此阳光都照进来。</div>
             <div class="line">我爱周玉这句话，</div>
             <div class="line">开始生根发芽，</div>
             <div class="line">慢慢的枝繁叶茂，</div>
             <div class="line">整棵树上开满了情歌。</div>
             <div class="line">微风悄悄经过，</div>
-            <div class="line">就带到你耳边，</div>
+            <div class="line">就带到了你耳边，</div>
             <div class="line">是我在对你唱：</div>
 
-            <!-- 律动条容器（从一开始就存在，占位） -->
+            <!-- 律动条容器 -->
             <div id="visualizerWrapper">
                 <canvas id="visualizer" height="60"></canvas>
             </div>
@@ -452,14 +451,12 @@
             function startVisualizer() {
                 if (visualizerStarted) return;
                 visualizerStarted = true;
-                // 显示容器
                 visualizerWrapper.classList.add('active');
                 resizeCanvas();
                 drawVisualizer();
             }
 
             function resizeCanvas() {
-                // canvas 宽度跟随父容器，但父容器被 CSS 限制为 70% + max-width:400px
                 const rect = canvas.parentElement.getBoundingClientRect();
                 const w = Math.min(rect.width, 400);
                 canvas.width = w;
@@ -486,15 +483,13 @@
                 for (let i = 0; i < dataArray.length; i++) {
                     const value = dataArray[i];
                     const percent = value / 255;
-                    // 竖条高度
                     const barHeight = percent * (height - 12) + 3;
                     const y = (height - barHeight) / 2;
 
-                    // 【金色温暖·落日感】色相从 45°（金色）到 20°（橙红）
-                    // 音量越大，颜色越暖（从金色偏向橙红）
-                    const hue = 45 - percent * 25;        // 45 → 20
-                    const saturation = 85 + percent * 10;  // 85% → 95%
-                    const lightness = 55 + percent * 15;   // 55% → 70%
+                    // 金色温暖·落日感
+                    const hue = 45 - percent * 25;
+                    const saturation = 85 + percent * 10;
+                    const lightness = 55 + percent * 15;
 
                     ctx.fillStyle = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
                     ctx.shadowColor = `hsla(${hue}, 90%, 60%, 0.4)`;
@@ -574,7 +569,7 @@
             audio.addEventListener('timeupdate', onTimeUpdate);
             audio.addEventListener('ended', onMusicEnded);
 
-            // ===== 点击拆开 =====
+            // ===== 点击拆开（音乐从0开始，3秒淡入到0.2） =====
             openBtn.addEventListener('click', function() {
                 if (isOpened || !hasLoaded) return;
                 isOpened = true;
@@ -589,11 +584,15 @@
                     content.classList.add('visible');
                 });
 
-                audio.volume = 0.2;
-                audio.play().catch(err => {
+                // ---- 音乐从0开始，3秒淡入到0.2 ----
+                audio.volume = 0;
+                audio.play().then(() => {
+                    fadeVolume(0, 0.2, 3000);
+                }).catch(err => {
                     console.warn('音频播放被阻止，请手动点击页面后重试。');
                 });
 
+                // 逐行显示文字
                 showNextLine();
             });
 
@@ -601,8 +600,8 @@
             function showNextLine() {
                 if (lineIndex >= lines.length) {
                     allShown = true;
-                    // 文字全部显示完毕，启动律动条（此时信纸高度已经稳定）
                     startVisualizer();
+                    // 文字显示完，从0.2渐强到0.7（此时距离开点击已过去约22秒，淡入早已完成）
                     fadeVolume(0.2, 0.7, 2500);
                     return;
                 }
@@ -611,7 +610,7 @@
                 timer = setTimeout(showNextLine, 2000);
             }
 
-            // ===== 音量平滑增强 =====
+            // ===== 通用音量渐变函数 =====
             function fadeVolume(from, to, duration) {
                 const startTime = performance.now();
                 const startVol = from;
@@ -629,7 +628,7 @@
                 requestAnimationFrame(step);
             }
 
-            // ===== 辅助 =====
+            // ===== 辅助：用户点击页面任意位置尝试播放 =====
             document.addEventListener('click', function tryPlay() {
                 if (isOpened && audio.paused && !musicEnded) {
                     audio.play().catch(() => {});
@@ -637,12 +636,14 @@
                 document.removeEventListener('click', tryPlay);
             }, { once: true });
 
+            // ===== 窗口自适应 =====
             window.addEventListener('resize', function() {
                 if (visualizerStarted) {
                     resizeCanvas();
                 }
             });
 
+            // ===== 清理 =====
             window.addEventListener('beforeunload', function() {
                 if (timer) clearTimeout(timer);
                 if (fallbackTimer) clearTimeout(fallbackTimer);
