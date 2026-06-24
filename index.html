@@ -48,7 +48,7 @@
             transform: rotate(15deg);
         }
 
-        /* ===== 信封区域 ===== */
+        /* ===== 信封区域（初始） ===== */
         #envelope {
             display: flex;
             flex-direction: column;
@@ -110,7 +110,7 @@
             font-weight: 300;
         }
 
-        /* ===== 拆开按钮（初始隐藏） ===== */
+        /* ===== 拆开按钮 ===== */
         #openBtn {
             background: #ff6b6b;
             border: none;
@@ -142,7 +142,7 @@
             transform: none;
         }
 
-        /* ===== 文字区域（初始隐藏） ===== */
+        /* ===== 文字区域 ===== */
         #content {
             display: none;
             flex-direction: column;
@@ -150,11 +150,17 @@
             margin: 10px 0 30px;
             width: 100%;
             opacity: 0;
-            transition: opacity 0.8s ease;
+            transition: opacity 0.8s ease, transform 0.8s ease;
         }
         #content.visible {
             display: flex;
             opacity: 1;
+        }
+        /* 合上信纸时的状态（向上收起） */
+        #content.closing {
+            opacity: 0;
+            transform: translateY(-60px);
+            pointer-events: none;
         }
         .line {
             font-size: 1.6rem;
@@ -171,26 +177,133 @@
             transform: translateY(0);
         }
 
+        /* ===== 律动线 (Canvas) ===== */
+        #visualizer {
+            width: 100%;
+            height: 80px;
+            margin: 20px 0 10px;
+            display: none;
+            border-radius: 12px;
+            background: rgba(255, 215, 215, 0.25);
+            backdrop-filter: blur(4px);
+            transition: opacity 0.8s ease;
+        }
+        #visualizer.active {
+            display: block;
+        }
+        #visualizer.fade-out {
+            opacity: 0;
+        }
+
+        /* ===== 信封背面（最终展示） ===== */
+        #letterBack {
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            padding: 40px 30px;
+            min-height: 300px;
+            background: linear-gradient(160deg, #fdf6f0, #f5e6d3);
+            border-radius: 28px;
+            box-shadow: 0 8px 40px rgba(120, 70, 50, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+            border: 1px solid #e8d5c4;
+            position: relative;
+            opacity: 0;
+            transform: scale(0.7) rotate(-2deg);
+            transition: opacity 0.9s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.9s cubic-bezier(0.34, 1.56, 0.64, 1);
+            margin: 10px 0;
+        }
+        #letterBack.show {
+            display: flex;
+            opacity: 1;
+            transform: scale(1) rotate(0deg);
+        }
+        /* 装饰边框 */
+        #letterBack::before {
+            content: '';
+            position: absolute;
+            inset: 12px;
+            border: 1.5px dashed #dcc4b4;
+            border-radius: 18px;
+            pointer-events: none;
+        }
+        /* 爱心邮戳装饰 */
+        #letterBack .stamp {
+            position: absolute;
+            top: 20px;
+            right: 24px;
+            font-size: 2rem;
+            opacity: 0.5;
+            transform: rotate(12deg);
+        }
+        /* 中间主文字 */
+        #letterBack .main-text {
+            font-size: 3.4rem;
+            font-weight: 700;
+            color: #4a2c2a;
+            letter-spacing: 6px;
+            text-shadow: 0 2px 12px rgba(200, 120, 100, 0.15);
+            margin-bottom: 10px;
+            font-family: 'Georgia', serif;
+        }
+        #letterBack .main-text .heart {
+            color: #e06060;
+            display: inline-block;
+            animation: pulseHeart 1.8s ease-in-out infinite;
+        }
+        @keyframes pulseHeart {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.15); }
+        }
+        /* 副标题 / 装饰 */
+        #letterBack .sub-text {
+            font-size: 1rem;
+            color: #b0887a;
+            letter-spacing: 6px;
+            font-weight: 300;
+            margin-top: 2px;
+        }
+        /* 右下角寄件人 */
+        #letterBack .sender {
+            position: absolute;
+            bottom: 28px;
+            right: 32px;
+            font-size: 1.15rem;
+            color: #7a5a56;
+            font-weight: 400;
+            letter-spacing: 2px;
+            font-style: italic;
+        }
+        #letterBack .sender::before {
+            content: '✉ ';
+            font-style: normal;
+        }
+
         /* ===== 底部 ===== */
         .footer {
             margin-top: 25px;
             font-size: 0.9rem;
             color: #b07a76;
             letter-spacing: 2px;
+            transition: opacity 0.6s ease;
         }
-        #content.visible + .footer {
+        .footer.hide {
+            opacity: 0;
+            pointer-events: none;
+        }
+        #content.visible + #visualizer + .footer {
             margin-top: 10px;
         }
     </style>
 </head>
 <body>
     <div class="card">
-        <!-- 信封 -->
+        <!-- ===== 信封（初始状态） ===== -->
         <div id="envelope">
             <div class="envelope-icon">💌</div>
             <div class="envelope-text">有一封信给你</div>
 
-            <!-- 进度条区域 -->
             <div id="loadingArea">
                 <div class="progress-bar-bg">
                     <div class="progress-bar-fill" id="progressFill"></div>
@@ -198,11 +311,10 @@
                 <div class="loading-text" id="loadingText">📮 信件接收中</div>
             </div>
 
-            <!-- 拆开按钮（初始隐藏） -->
             <button id="openBtn">💕 拆开</button>
         </div>
 
-        <!-- 表白文字（初始隐藏） -->
+        <!-- ===== 表白文字 ===== -->
         <div id="content">
             <div class="line">第一次见到你，</div>
             <div class="line">就觉得世界突然变得明亮。</div>
@@ -217,16 +329,31 @@
             <div class="line">是我在对你唱：</div>
         </div>
 
-        <div class="footer">—— 给小周的一封信 ——</div>
+        <!-- ===== 律动线条 ===== -->
+        <canvas id="visualizer" height="80"></canvas>
+
+        <!-- ===== 信封背面（最终展示） ===== -->
+        <div id="letterBack">
+            <span class="stamp">💌</span>
+            <div class="main-text">
+                我爱你 <span class="heart">❤️</span>
+            </div>
+            <div class="sub-text">— 永远 —</div>
+            <div class="sender">寄件人 —— 小周</div>
+        </div>
+
+        <!-- ===== 底部 ===== -->
+        <div class="footer" id="footer">—— 给小周的一封信 ——</div>
     </div>
 
-    <!-- 背景音乐 -->
-    <audio id="bgMusic" loop preload="auto" src="love.mp3">
+    <!-- 背景音乐（移除 loop，只播放一次） -->
+    <audio id="bgMusic" preload="auto" src="love.mp3">
         您的浏览器不支持 audio 元素。
     </audio>
 
     <script>
         (function() {
+            // ===== DOM 引用 =====
             const audio = document.getElementById('bgMusic');
             const envelope = document.getElementById('envelope');
             const content = document.getElementById('content');
@@ -234,18 +361,33 @@
             const progressFill = document.getElementById('progressFill');
             const loadingText = document.getElementById('loadingText');
             const lines = document.querySelectorAll('.line');
+            const canvas = document.getElementById('visualizer');
+            const ctx = canvas.getContext('2d');
+            const letterBack = document.getElementById('letterBack');
+            const footer = document.getElementById('footer');
 
             let isOpened = false;
             let lineIndex = 0;
             let timer = null;
             let allShown = false;
 
-            // ===== 更可靠的音频加载检测 =====
+            // ===== Web Audio 相关 =====
+            let audioCtx = null;
+            let analyser = null;
+            let dataArray = null;
+            let animationId = null;
+            let visualizerStarted = false;
+
+            // ===== 音乐结束相关 =====
+            let isFadingOut = false;
+            let fadeOutTimer = null;
+            let musicEnded = false;
+
+            // ===== 音频加载检测 =====
             let hasLoaded = false;
             let fallbackTimer = null;
-            const LOAD_THRESHOLD = 0.95; // 加载到95%才算完成
+            const LOAD_THRESHOLD = 0.95;
 
-            // 检查加载进度
             function checkLoading() {
                 if (hasLoaded) return;
                 if (audio.duration > 0 && !isNaN(audio.duration)) {
@@ -253,9 +395,7 @@
                     if (buffered.length > 0) {
                         let loaded = buffered.end(buffered.length - 1);
                         let percent = loaded / audio.duration;
-                        // 更新进度条
                         progressFill.style.width = Math.min(100, percent * 100) + '%';
-                        // 如果达到阈值
                         if (percent >= LOAD_THRESHOLD) {
                             loadingComplete();
                         }
@@ -269,28 +409,170 @@
                 progressFill.style.width = '100%';
                 document.getElementById('loadingArea').style.display = 'none';
                 openBtn.classList.add('show');
-                // 移除监听
                 audio.removeEventListener('progress', checkLoading);
                 audio.removeEventListener('loadedmetadata', checkLoading);
                 if (fallbackTimer) clearTimeout(fallbackTimer);
             }
 
-            // 监听进度变化
             audio.addEventListener('progress', checkLoading);
-            // 当元数据加载完成，获取 duration 后立即检查一次
             audio.addEventListener('loadedmetadata', checkLoading);
-
-            // 如果已经加载完毕（缓存），手动触发一次检查
             if (audio.readyState >= 1) {
                 setTimeout(checkLoading, 100);
             }
-
-            // 超时保护：15秒后如果还未加载完成，强制显示按钮（防止死等）
             fallbackTimer = setTimeout(function() {
                 if (!hasLoaded) {
-                    loadingComplete(); // 强制完成
+                    loadingComplete();
                 }
             }, 15000);
+
+            // ===== 初始化 Web Audio =====
+            function initAudioContext() {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    analyser = audioCtx.createAnalyser();
+                    analyser.fftSize = 256;
+                    const source = audioCtx.createMediaElementSource(audio);
+                    source.connect(analyser);
+                    analyser.connect(audioCtx.destination);
+                    dataArray = new Uint8Array(analyser.frequencyBinCount);
+                }
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+            }
+
+            // ===== 律动 =====
+            function startVisualizer() {
+                if (visualizerStarted) return;
+                visualizerStarted = true;
+                canvas.classList.add('active');
+                resizeCanvas();
+                drawVisualizer();
+            }
+
+            function resizeCanvas() {
+                const rect = canvas.parentElement.getBoundingClientRect();
+                const w = Math.min(600, rect.width - 60);
+                canvas.width = w;
+                canvas.height = 80;
+            }
+
+            function drawVisualizer() {
+                if (!visualizerStarted || musicEnded) {
+                    animationId = requestAnimationFrame(drawVisualizer);
+                    return;
+                }
+                if (!analyser) {
+                    animationId = requestAnimationFrame(drawVisualizer);
+                    return;
+                }
+                analyser.getByteFrequencyData(dataArray);
+                const width = canvas.width;
+                const height = canvas.height;
+                const barWidth = Math.max(2, width / dataArray.length * 2.5);
+                let x = 0;
+
+                ctx.clearRect(0, 0, width, height);
+
+                for (let i = 0; i < dataArray.length; i++) {
+                    const value = dataArray[i];
+                    const percent = value / 255;
+                    const barHeight = percent * (height - 20) + 4;
+                    const y = (height - barHeight) / 2;
+                    const hue = 340 - percent * 20;
+                    ctx.fillStyle = `hsl(${hue}, 85%, 65%)`;
+                    ctx.shadowColor = `hsl(${hue}, 85%, 70%)`;
+                    ctx.shadowBlur = 10;
+                    ctx.fillRect(x, y, barWidth, barHeight);
+                    x += barWidth + 2;
+                }
+                ctx.shadowBlur = 0;
+
+                animationId = requestAnimationFrame(drawVisualizer);
+            }
+
+            // ===== 音量渐弱 =====
+            function startFadeOut() {
+                if (isFadingOut) return;
+                isFadingOut = true;
+                const startVol = audio.volume;
+                const startTime = performance.now();
+                const duration = 4000; // 4秒渐弱到0
+
+                function step(currentTime) {
+                    const elapsed = currentTime - startTime;
+                    const progress = Math.min(1, elapsed / duration);
+                    const eased = 1 - Math.pow(1 - progress, 2);
+                    audio.volume = startVol * (1 - eased);
+                    if (progress < 1) {
+                        fadeOutTimer = requestAnimationFrame(step);
+                    } else {
+                        audio.volume = 0;
+                        // 音乐可能还没触发 ended，但音量已经为0
+                    }
+                }
+                requestAnimationFrame(step);
+            }
+
+            // ===== 合上信纸，展示信封背面 =====
+            function closeLetterAndShowBack() {
+                if (musicEnded) return;
+                musicEnded = true;
+
+                // 停止律动
+                if (animationId) {
+                    cancelAnimationFrame(animationId);
+                    animationId = null;
+                }
+                canvas.classList.remove('active');
+                canvas.classList.add('fade-out');
+
+                // 文字区域向上合拢
+                content.classList.add('closing');
+
+                // 底部文字隐藏
+                footer.classList.add('hide');
+
+                // 等待合拢动画完成后展示信封背面
+                setTimeout(function() {
+                    // 隐藏文字区域
+                    content.style.display = 'none';
+                    canvas.style.display = 'none';
+
+                    // 展示信封背面
+                    letterBack.classList.add('show');
+
+                    // 音频上下文关闭（释放资源）
+                    if (audioCtx && audioCtx.state !== 'closed') {
+                        audioCtx.close().catch(() => {});
+                    }
+                }, 900);
+            }
+
+            // ===== 监听音乐播放进度 =====
+            function onTimeUpdate() {
+                if (musicEnded || !isOpened) return;
+                const dur = audio.duration;
+                if (!dur || isNaN(dur)) return;
+                const remain = dur - audio.currentTime;
+
+                // 剩余时间少于5秒时开始渐弱
+                if (remain < 5 && !isFadingOut && audio.volume > 0.01) {
+                    startFadeOut();
+                }
+            }
+
+            // ===== 音乐结束 =====
+            function onMusicEnded() {
+                if (musicEnded) return;
+                // 确保音量已经为0
+                audio.volume = 0;
+                // 合上信纸
+                closeLetterAndShowBack();
+            }
+
+            audio.addEventListener('timeupdate', onTimeUpdate);
+            audio.addEventListener('ended', onMusicEnded);
 
             // ===== 点击拆开 =====
             openBtn.addEventListener('click', function() {
@@ -298,30 +580,35 @@
                 isOpened = true;
                 openBtn.disabled = true;
 
-                // 1. 信封淡出
+                // 初始化 Web Audio
+                initAudioContext();
+
+                // 信封淡出
                 envelope.classList.add('hidden');
 
-                // 2. 显示文字区域
+                // 显示文字
                 content.style.display = 'flex';
                 requestAnimationFrame(() => {
                     content.classList.add('visible');
                 });
 
-                // 3. 开始播放音乐（小音量）
+                // 播放音乐
                 audio.volume = 0.2;
-                // 因为已加载足够，play() 通常很流畅
                 audio.play().catch(err => {
                     console.warn('音频播放被阻止，请手动点击页面后重试。');
                 });
 
-                // 4. 逐行显示文字
+                // 逐行显示文字
                 showNextLine();
             });
 
-            // 逐行显示
+            // ===== 逐行显示 =====
             function showNextLine() {
                 if (lineIndex >= lines.length) {
                     allShown = true;
+                    // 启动律动
+                    startVisualizer();
+                    // 音量渐强
                     fadeVolume(0.2, 0.7, 2500);
                     return;
                 }
@@ -330,35 +617,46 @@
                 timer = setTimeout(showNextLine, 2000);
             }
 
-            // 音量平滑过渡
+            // ===== 音量平滑增强 =====
             function fadeVolume(from, to, duration) {
                 const startTime = performance.now();
                 const startVol = from;
                 const diff = to - from;
+
                 function step(currentTime) {
                     const elapsed = currentTime - startTime;
                     const progress = Math.min(1, elapsed / duration);
                     const eased = 1 - Math.pow(1 - progress, 2);
                     audio.volume = startVol + diff * eased;
-                    if (progress < 1) {
+                    if (progress < 1 && !musicEnded) {
                         requestAnimationFrame(step);
                     }
                 }
                 requestAnimationFrame(step);
             }
 
-            // 辅助：用户点击页面任意位置尝试播放（如果被阻止）
+            // ===== 辅助：用户点击页面任意位置尝试播放 =====
             document.addEventListener('click', function tryPlay() {
-                if (isOpened && audio.paused) {
+                if (isOpened && audio.paused && !musicEnded) {
                     audio.play().catch(() => {});
                 }
                 document.removeEventListener('click', tryPlay);
             }, { once: true });
 
-            // 清理
+            // ===== 窗口自适应 =====
+            window.addEventListener('resize', function() {
+                if (visualizerStarted) {
+                    resizeCanvas();
+                }
+            });
+
+            // ===== 清理 =====
             window.addEventListener('beforeunload', function() {
                 if (timer) clearTimeout(timer);
                 if (fallbackTimer) clearTimeout(fallbackTimer);
+                if (fadeOutTimer) cancelAnimationFrame(fadeOutTimer);
+                if (animationId) cancelAnimationFrame(animationId);
+                if (audioCtx) audioCtx.close();
             });
 
         })();
