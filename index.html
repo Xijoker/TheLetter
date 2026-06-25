@@ -339,11 +339,8 @@
         <!-- ===== 信封背面（最终展示） ===== -->
         <div id="letterBack">
             <span class="stamp">💌</span>
-            <div class="main-text">
-                我爱你 <span class="heart">❤️</span>
-            </div>
-            <div class="sub-text">— 永远 —</div>
-            <div class="sender">寄件人 —— 小周</div>
+		<div class="main-text> 我爱你</div>
+            <div class="sender">寄信人 —— 徐琦</div>
         </div>
 
         <!-- ===== 底部 ===== -->
@@ -485,7 +482,6 @@
                     const barHeight = percent * (height - 12) + 3;
                     const y = (height - barHeight) / 2;
 
-                    // 红色热情色系：色相从 0（正红）向 -20（橙红）偏移，饱和度、明度鲜艳
                     const hue = 0 - percent * 20;
                     const saturation = 80 + percent * 20;
                     const lightness = 50 + percent * 20;
@@ -583,12 +579,20 @@
                     content.classList.add('visible');
                 });
 
-                // 音乐从0开始，5秒淡入到0.2
-                audio.volume = 0;
+                // ---- 音乐淡入修复：确保一定有声音 ----
+                audio.volume = 0.01;          // 先给一个极低音量，保证可闻
                 audio.play().then(() => {
-                    fadeVolume(0, 0.2, 5000); // 5秒
+                    fadeVolume(0.01, 0.2, 5000); // 从0.01开始渐入到0.2，持续5秒
+
+                    // 后备：如果6秒后音量仍小于0.01，强制设为0.2
+                    setTimeout(function() {
+                        if (audio.volume < 0.01 && !musicEnded) {
+                            audio.volume = 0.2;
+                        }
+                    }, 6000);
                 }).catch(err => {
                     console.warn('音频播放被阻止，请手动点击页面后重试。');
+                    // 即使被阻止，也尝试将音量调高（但播放不了）
                 });
 
                 // 延迟800ms（等待信纸完全淡入）再开始显示第一行文字
@@ -610,18 +614,24 @@
                 timer = setTimeout(showNextLine, 2000);
             }
 
-            // ===== 通用音量渐变函数 =====
+            // ===== 通用音量渐变函数（增强版） =====
             function fadeVolume(from, to, duration) {
+                // 立即设置起始值，避免卡在0
+                audio.volume = from;
+                if (duration <= 0) {
+                    audio.volume = to;
+                    return;
+                }
                 const startTime = performance.now();
-                const startVol = from;
                 const diff = to - from;
 
                 function step(currentTime) {
+                    if (musicEnded) return;
                     const elapsed = currentTime - startTime;
                     const progress = Math.min(1, elapsed / duration);
                     const eased = 1 - Math.pow(1 - progress, 2);
-                    audio.volume = startVol + diff * eased;
-                    if (progress < 1 && !musicEnded) {
+                    audio.volume = from + diff * eased;
+                    if (progress < 1) {
                         requestAnimationFrame(step);
                     }
                 }
