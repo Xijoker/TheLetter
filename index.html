@@ -142,7 +142,7 @@
             transform: none;
         }
 
-        /* ===== 文字区域（包含律动条，从一开始就预留空间） ===== */
+        /* ===== 文字区域（包含律动条） ===== */
         #content {
             display: none;
             flex-direction: column;
@@ -156,7 +156,6 @@
             display: flex;
             opacity: 1;
         }
-        /* 合上信纸时的状态 */
         #content.closing {
             opacity: 0;
             transform: translateY(-60px);
@@ -317,10 +316,10 @@
             <button id="openBtn">💕 拆开</button>
         </div>
 
-        <!-- ===== 表白文字 + 律动条（律动条从一开始就占位） ===== -->
+        <!-- ===== 表白文字 + 律动条 ===== -->
         <div id="content">
             <div class="line">第一次见到你，</div>
-            <div class="line">就觉得世界突然变得明亮。</div>
+            <div class="line">世界突然变得明亮。</div>
             <div class="line">仿佛你在我的世界开了一扇窗，</div>
             <div class="line">从此阳光都照进来。</div>
             <div class="line">我爱周玉这句话，</div>
@@ -328,7 +327,7 @@
             <div class="line">慢慢的枝繁叶茂，</div>
             <div class="line">整棵树上开满了情歌。</div>
             <div class="line">微风悄悄经过，</div>
-            <div class="line">就带到了你耳边，</div>
+            <div class="line">带到你耳边，</div>
             <div class="line">是我在对你唱：</div>
 
             <!-- 律动条容器 -->
@@ -344,7 +343,7 @@
                 我爱你 <span class="heart">❤️</span>
             </div>
             <div class="sub-text">— 永远 —</div>
-            <div class="sender">寄件人 —— 徐琦</div>
+            <div class="sender">寄件人 —— 小周</div>
         </div>
 
         <!-- ===== 底部 ===== -->
@@ -447,7 +446,7 @@
                 }
             }
 
-            // ===== 律动（金色温暖·落日感） =====
+            // ===== 律动（红色热情色系） =====
             function startVisualizer() {
                 if (visualizerStarted) return;
                 visualizerStarted = true;
@@ -486,10 +485,10 @@
                     const barHeight = percent * (height - 12) + 3;
                     const y = (height - barHeight) / 2;
 
-                    // 金色温暖·落日感
-                    const hue = 45 - percent * 25;
-                    const saturation = 85 + percent * 10;
-                    const lightness = 55 + percent * 15;
+                    // 红色热情色系：色相从 0（正红）向 -20（橙红）偏移，饱和度、明度鲜艳
+                    const hue = 0 - percent * 20;
+                    const saturation = 80 + percent * 20;
+                    const lightness = 50 + percent * 20;
 
                     ctx.fillStyle = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
                     ctx.shadowColor = `hsla(${hue}, 90%, 60%, 0.4)`;
@@ -569,7 +568,7 @@
             audio.addEventListener('timeupdate', onTimeUpdate);
             audio.addEventListener('ended', onMusicEnded);
 
-            // ===== 点击拆开（音乐从0开始，3秒淡入到0.2） =====
+            // ===== 点击拆开（音乐从0开始，5秒淡入到0.2） =====
             openBtn.addEventListener('click', function() {
                 if (isOpened || !hasLoaded) return;
                 isOpened = true;
@@ -584,16 +583,18 @@
                     content.classList.add('visible');
                 });
 
-                // ---- 音乐从0开始，3秒淡入到0.2 ----
+                // 音乐从0开始，5秒淡入到0.2
                 audio.volume = 0;
                 audio.play().then(() => {
-                    fadeVolume(0, 0.2, 3000);
+                    fadeVolume(0, 0.2, 5000); // 5秒
                 }).catch(err => {
                     console.warn('音频播放被阻止，请手动点击页面后重试。');
                 });
 
-                // 逐行显示文字
-                showNextLine();
+                // 延迟800ms（等待信纸完全淡入）再开始显示第一行文字
+                setTimeout(function() {
+                    showNextLine();
+                }, 800);
             });
 
             // ===== 逐行显示 =====
@@ -601,7 +602,6 @@
                 if (lineIndex >= lines.length) {
                     allShown = true;
                     startVisualizer();
-                    // 文字显示完，从0.2渐强到0.7（此时距离开点击已过去约22秒，淡入早已完成）
                     fadeVolume(0.2, 0.7, 2500);
                     return;
                 }
